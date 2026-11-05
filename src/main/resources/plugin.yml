@@ -1,0 +1,39 @@
+# StarEnchant 插件描述文件（Bukkit/Purpur 原生，零前置插件依赖）
+name: StarEnchant
+version: '${version}'
+main: com.starinn.enchant.StarEnchant
+api-version: '1.21'
+description: 星穹旅驿扩展附魔插件：双层附魔体系（原版等级突破 + PDC 自定义附魔），零客户端下发，Java/基岩两端生效。
+author: StarInn
+load: POSTWORLD
+
+commands:
+  enchant:
+    description: StarEnchant 附魔插件主命令
+    usage: /<command> list|info|give|reload|shop|faction ...
+    aliases: [ench, se]
+    permission: star.enchant.use
+    permission-message: §c你没有使用本插件命令的权限。
+
+permissions:
+  star.enchant.use:
+    description: 使用 /enchant list / info / shop 等玩家级命令
+    default: true
+  star.enchant.info:
+    description: 查看附魔详细信息
+    default: true
+  star.enchant.list:
+    description: 浏览附魔列表
+    default: true
+  star.enchant.shop:
+    description: 打开阵营专属附魔商店
+    default: true
+  star.enchant.give:
+    description: 发放自定义附魔书（管理员）
+    default: op
+  star.enchant.reload:
+    description: 热加载配置（管理员）
+    default: op
+  star.enchant.setfaction:
+    description: 设置玩家阵营（管理员）
+    default: op

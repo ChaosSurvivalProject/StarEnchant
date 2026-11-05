@@ -1,0 +1,913 @@
+# ====================================================================
+# StarEnchant v1.0.0 配置文件(全中文注释)
+# 红线:所有数值(概率/倍率/时长/百分比/等级上限)都在本文件配置,代码零硬编码。
+# 修改后 /enchant reload 热加载。缺键/非法值的附魔会被单独关闭(降级),不影响其他功能。
+# 数值键名含义:
+#   xxx-per-level  = 该数值 × 附魔等级 = 实际生效值
+#   不带 per-level 的 = 固定值,不随等级变化
+# ====================================================================
+
+general:
+  debug-log: false                # 是否输出调试日志(定位问题时再开,会有性能损耗)
+  check-interval-ticks: 40        # 周期检测间隔(刻):穿戴状态/移速/氧气/嗜血衰减等(20刻=1秒)
+  tool-damage-per-break: 1        # 「断岩/熔炼」等自管挖掘流程每次挖掘消耗装备耐久(点)
+  shard-api-window-seconds: 5     # 碎片亲和倍率记录在内存的有效期(秒),服主系统需在此窗口内读取
+  reduce-cap-percent: 90          # 所有「受伤减免」类附魔叠加后的减免上限%(防数值溢出)
+  day-start: 0                    # 白天判定时段起点(世界时间刻,world.getTime()对24000取模后)
+  day-end: 12000                  # 白天判定时段终点;[day-start,day-end)为白天,否则黑夜
+  dawn-world: world               # 「炽壤」世界的名称(按你服务器实际世界名改)
+  dusk-world: world_nether        # 「渊域」世界的名称
+  rift-worlds:                    # 「裂缝战利品」生效的世界列表
+    - world
+    - world_nether
+    - world_the_end
+
+storage:
+  namespace: starinn              # PDC 命名空间(跨服靠物品自带数据,天然同步)
+  ench-key: ench                  # 自定义附魔存储键(内容:附魔id->等级 的映射)
+  faction-key: faction            # 玩家阵营存储键(写在玩家 PDC 上)
+
+# ---------------------------------------------------------------- 阵营与商店
+faction:
+  dawn-id: dawn                   # 黎明阵营的内部 id
+  dusk-id: dusk                   # 暮夜阵营的内部 id
+  none-id: none                   # 无阵营的内部 id
+
+shop:
+  enabled: true                   # 阵营商店总开关
+  title: "§6星穹商店·阵营附魔"      # 商店窗口标题
+  price-levels: 30                # 每本附魔书售价(经验等级;零依赖,用原生经验做货币)
+  book-level: 1                   # 商店出售的附魔书等级
+  locked-lore: "§7只有本阵营成员才能购买"
+  dawn-items:                     # 黎明(炽壤)阵营在售附魔 id(与 dusk-items 严格对称)
+    - dawn_light
+    - star_vein_dawn
+    - oath_guard_dawn
+  dusk-items:                     # 暮夜(渊域)阵营在售附魔 id
+    - night_hunt
+    - star_vein_dusk
+    - oath_guard_dusk
+
+# ---------------------------------------------------------------- 自定义附魔书
+book:
+  material: ENCHANTED_BOOK        # 附魔书使用的物品材质(原版物品,基岩端同样可显示)
+  display-name: "§d远古附魔书"      # 书的显示名
+  desc-line: "§7可于铁砧或锻造台应用于装备"
+
+vanilla-plus:
+  enabled: true                   # 第一层·原版扩展总开关
+  level-caps:                     # 原版附魔等级上限(只列出被突破的附魔;上限须在 5~255)
+    SHARPNESS: 10                 # 锋利 V -> X
+    SMITE: 10                     # 亡灵杀手 V -> X
+    BANE_OF_ARTHROPODS: 10        # 节肢杀手 V -> X
+    PROTECTION: 10                # 保护 V -> X
+    FIRE_PROTECTION: 10           # 火焰保护 V -> X
+    BLAST_PROTECTION: 10          # 爆炸保护 V -> X
+    PROJECTILE_PROTECTION: 10     # 弹射物保护 V -> X
+    FEATHER_FALLING: 5            # 摔落保护 IV -> V
+    EFFICIENCY: 10                # 效率（迅捷挖掘）V -> X
+    POWER: 10                     # 力量 V -> X
+    DEPTH_STRIDER: 10             # 深海探索者 III -> X
+    LOOTING: 5                    # 抢夺 III -> V
+    FORTUNE: 5                    # 时运 III -> V
+    UNBREAKING: 10                # 耐久 III -> X
+  conflict-groups:                # 互斥解除:被启用的组内附魔允许在同一装备上共存
+    enabled: true                 # 互斥解除总开关
+    weapon-trinity: true          # 锋利+亡灵杀手+节肢杀手 共存
+    protection-suite: true        # 保护+火焰保护+爆炸保护+弹射物保护 共存
+    fortune-silk-touch: false     # 时运+精准采集 共存(默认关闭,过强)
+
+enchanting-table:
+  enabled: true                   # 附魔台升级总开关(突破 III 级限制)
+  upgrade-chance-percent: 60      # 点击附魔时,每条原版附魔被提升到更高阶的概率
+  upgrade-max-step: 7             # 单次最多提升的阶数(最终仍受 level-caps 上限)
+  conflict-extra-chance-percent: 35  # 从互斥组中额外附加一条同族附魔的概率
+
+# ---------------------------------------------------------------- 锻造台(核心获取途径)
+# 每条配方:模板槽物品 + 装备槽材料 + 材料槽物品与数量 -> 为结果追加/升级指定自定义附魔。
+# 模板与材料请使用原版物品(服主可用「活动任务发放接口」或 /enchant give 发放载体物品)。
+smithing:
+  enabled: true                   # 锻造台途径总开关
+  recipes:
+    - name: §6燃焰熔铸              # 配方备注名(仅展示)
+      template: BLAZE_POWDER        # 模板槽所需物品(1.21.11 无燃焰升级模板,改用烈焰棒粉作载体;可换任意原版物品)
+      equipment: [DIAMOND_SWORD, NETHERITE_SWORD]  # 装备槽材料白名单;ANY 表示任意带附魔栏物品
+      mineral: AMETHYST_SHARD       # 材料槽物品(可改为你们的炽阳碎片物品)
+      mineral-amount: 4             # 材料槽需要的数量(取出成品时扣除)
+      add-enchant: blaze            # 成功时追加/升级的自定义附魔 id
+      add-levels: 1                 # 增加等级数(已有则+1,不超过该附魔 max-level)
+    - name: §d裂痕熔铸
+      template: COAST_ARMOR_TRIM_SMITHING_TEMPLATE
+      equipment: ANY                # 任意装备
+      mineral: AMETHYST_SHARD
+      mineral-amount: 6
+      add-enchant: rift
+      add-levels: 1
+
+# ---------------------------------------------------------------- 铁砧(附魔书应用与合并)
+anvil:
+  enabled: true                   # 铁砧传递自定义附魔总开关(PDC 跨铁砧不丢失)
+  book-cost-levels: 3             # 自定义附魔书应用/升级所需经验等级
+  merge-unconflict: true          # 铁砧合并时按 vanilla-plus.conflict-groups 解除互斥
+  max-merge-cost: 40              # 合并所需等级上限(原版超上限会拒绝,由本插件接管)
+
+# ---------------------------------------------------------------- 合成传递
+craft-transfer:
+  enabled: false                  # 合成时把输入格装备的自定义附魔传递给同材质产物
+  materials: [LEATHER_CHESTPLATE]  # 允许传递的材料白名单(默认仅皮革示例;原版铁砧/锻造不受影响)
+
+# ---------------------------------------------------------------- 裂缝战利品/怪物掉落
+loot:
+  enabled: true                   # 怪物掉落附魔书总开关(在 rift-worlds 中生效)
+  roll-chance-percent: 8          # 每次符合条件击杀掷一次书的总概率
+  pools:                          # 掉落池:weight 为相对权重;levels 为等级区间;mobs 限定怪物
+    - enchant: rift
+      weight: 10
+      min-level: 1
+      max-level: 1
+      mobs: [ZOMBIE, HUSK, DROWNED, SKELETON, STRAY, CREEPER]
+    - enchant: shade
+      weight: 6
+      min-level: 1
+      max-level: 1
+      mobs: [SPIDER, CAVE_SPIDER, ENDERMITE, SILVERFISH]
+    - enchant: pierce_shadow
+      weight: 5
+      min-level: 1
+      max-level: 1
+      mobs: [PILLAGER, STRAY, SKELETON]
+    - enchant: night_bite
+      weight: 8
+      min-level: 1
+      max-level: 2
+      mobs: [ZOMBIE, SKELETON, CREEPER, SPIDER, ENDERMAN]
+    - enchant: sun_brand
+      weight: 8
+      min-level: 1
+      max-level: 2
+      mobs: [BLAZE, MAGMA_CUBE, GHAST, ZOGLIN, PIGLIN_BRUTE]
+    - enchant: split_arrow
+      weight: 7
+      min-level: 1
+      max-level: 2
+      mobs: [PILLAGER, STRAY]
+    - enchant: blast_tip
+      weight: 6
+      min-level: 1
+      max-level: 1
+      mobs: [CREEPER, GHAST, BLAZE]
+    - enchant: blood_pact
+      weight: 5
+      min-level: 1
+      max-level: 2
+      mobs: [VAMPIRE, ZOMBIE, DROWNED]
+    - enchant: fine_gather
+      weight: 6
+      min-level: 1
+      max-level: 2
+      mobs: [WITCH, EVOKER, VINDICATOR]
+    - enchant: magnet
+      weight: 4
+      min-level: 1
+      max-level: 1
+      mobs: [DROWNED, GUARDIAN, ELDER_GUARDIAN]
+
+# ---------------------------------------------------------------- 钓鱼产出池
+fishing:
+  treasure-pool:                  # angler/treasure_seeker 额外宝藏掷骰的物品池
+    - DIAMOND
+    - GOLD_INGOT
+    - NAME_TAG
+    - SADDLE
+    - EXPERIENCE_BOTTLE
+  treasure-book-chance-percent: 12 # 宝藏掷中附带「垂钓/寻宝」相关书的基础概率(掷骰后再乘等级加成)
+
+# ---------------------------------------------------------------- 活动任务(发放接口)
+event-grant:
+  enabled: true                   # 允许 /enchant give 与插件 API 发放(活动任务用)
+  grant-message: "§6[星穹旅驿] §e活动任务奖励: {book}"   # {book} 替换为书名
+
+# ---------------------------------------------------------------- 挖掘/连锁性能与分类材料表
+materials:
+  ore-blocks:                     # 「矿石类方块」表(rich_vein/smelt 判定)
+    - IRON_ORE
+    - DEEPSLATE_IRON_ORE
+    - GOLD_ORE
+    - DEEPSLATE_GOLD_ORE
+    - COPPER_ORE
+    - DEEPSLATE_COPPER_ORE
+    - COAL_ORE
+    - DEEPSLATE_COAL_ORE
+    - REDSTONE_ORE
+    - DEEPSLATE_REDSTONE_ORE
+    - LAPIS_ORE
+    - DEEPSLATE_LAPIS_ORE
+    - DIAMOND_ORE
+    - DEEPSLATE_DIAMOND_ORE
+    - EMERALD_ORE
+    - DEEPSLATE_EMERALD_ORE
+    - NETHER_QUARTZ_ORE
+    - NETHER_GOLD_ORE
+    - ANCIENT_DEBRIS
+  raw-ores:                       # 粗矿(直接掉原矿物品,熔炼判定同样生效)
+    - RAW_IRON_BLOCK
+    - RAW_GOLD_BLOCK
+    - RAW_COPPER_BLOCK
+  stone-blocks:                   # 「石头类方块」表(quarry 判定)
+    - STONE
+    - COBBLESTONE
+    - DEEPSLATE
+    - COBBLED_DEEPSLATE
+    - GRANITE
+    - DIORITE
+    - ANDESITE
+    - TUFF
+    - DRIPSTONE_BLOCK
+    - CALCITE
+    - BASALT
+    - BLACKSTONE
+    - NETHERRACK
+    - END_STONE
+  smelt-map:                      # smelt 熔炼映射:挖掘矿石类 -> 直接掉烧炼产物
+    IRON_ORE: IRON_INGOT
+    DEEPSLATE_IRON_ORE: IRON_INGOT
+    GOLD_ORE: GOLD_INGOT
+    DEEPSLATE_GOLD_ORE: GOLD_INGOT
+    COPPER_ORE: COPPER_INGOT
+    DEEPSLATE_COPPER_ORE: COPPER_INGOT
+    ANCIENT_DEBRIS: NETHERITE_SCRAP
+    RAW_IRON_BLOCK: IRON_BLOCK
+    RAW_GOLD_BLOCK: GOLD_BLOCK
+    RAW_COPPER_BLOCK: COPPER_BLOCK
+
+tool-speed:
+  mode: attribute                 # 挖掘速度实现模式: attribute=1.21原生属性修正(Java精确百分比) | haste=迅捷药水效果(基岩端兼容更好)
+  haste-percent-per-level: 10     # haste 模式下每级迅捷效果提供的加速%(向上取整换算效果等级)
+
+performance:
+  chain-per-tick: 6               # 连锁挖掘(spread/timber/deep_dig)每刻最多处理方块数(分帧防卡服)
+  chain-queue-limit: 512          # 连锁队列长度硬上限(超出丢弃多余候选)
+  prospector-scan-per-tick: 128   # 勘探粒子扫描每刻最多检测方块数
+  homing-scan-ticks: 2            # 寻星箭矢每隔几刻寻找一次目标
+  cache-enabled: true             # 装备/手持附魔快照缓存(强烈建议开启)
+  timber-include-leaves: false    # 伐木连锁是否连带清理树叶
+
+commands:
+  list-per-page: 8                # /enchant list 每页显示条数
+  tab-complete: true              # 是否启用命令自动补全
+
+# ====================================================================
+# 60 个自定义附魔。每一项独立配置:
+#   enabled 开关 / max-level 上限 / display-name 显示名 / color 颜色(仅原版颜色码)
+#   sources 获取途径白名单(smithing=锻 台=enchanting 营=shop 裂=loot 活=event 钓=fishing)
+#   values 下所有 xxx-per-level 键都会乘以附魔等级
+# ====================================================================
+enchants:
+
+  # ---------- 武器类·剑斧 ----------
+  blaze:
+    enabled: true
+    max-level: 5
+    display-name: "燃焰"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDamageByEntityEvent 命中生物
+    # 效果: 目标燃烧(等级×2)秒；对怪物伤害+(8×等级)%
+    values:
+      fire-seconds-per-level: 2          # 点燃时长(秒)×等级
+      monster-damage-percent-per-level: 8          # 对怪物额外伤害%×等级
+  rift:
+    enabled: true
+    max-level: 3
+    display-name: "裂痕"
+    color: "§d"            # 仅允许原版颜色码
+    sources: [smithing, loot]
+    # 触发: EntityDamageByEntityEvent 命中生物 + EntityDeathEvent 击杀
+    # 效果: 击退距离+(50×等级)%；击杀怪物(15×等级)%概率额外掉落1个该怪物掉落物
+    values:
+      knockback-percent-per-level: 50          # 击退距离加成%×等级
+      kill-drop-chance-percent-per-level: 15          # 击杀额外掉落概率%×等级
+  sharp_edge:
+    enabled: true
+    max-level: 3
+    display-name: "疾锋"
+    color: "§c"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDamageByEntityEvent 命中生物(服务端等价实现)
+    # 效果: 攻击冷却-(8×等级)%：以服务端等效的「迅捷连击」实现——命中后(8×等级)%概率追加一次额外攻击
+    values:
+      extra-hit-chance-percent-per-level: 8          # 迅捷连击触发概率%×等级
+      extra-hit-damage-percent: 100          # 附加打击伤害%(固定,不乘等级)
+  echo:
+    enabled: true
+    max-level: 3
+    display-name: "回响"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDeathEvent 击杀怪物
+    # 效果: (20×等级)%概率恢复2饥饿值+1点生命
+    values:
+      chance-percent-per-level: 20          # 触发概率%×等级
+      restore-food: 2          # 恢复饥饿值(点)
+      restore-health: 1          # 恢复生命(半点)
+  drain:
+    enabled: true
+    max-level: 2
+    display-name: "汲取"
+    color: "§4"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDeathEvent 击杀怪物
+    # 效果: 怪物经验掉落+(25×等级)%
+    values:
+      xp-percent-per-level: 25          # 经验掉落加成%×等级
+      xp-base-per-monster: 5          # 怪物经验基数(orb点)×加成后生成
+  shield_break:
+    enabled: false          # ★默认关闭
+    max-level: 1
+    display-name: "碎盾"
+    color: "§c"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: EntityDamageByEntityEvent 命中且目标正举盾(PVP)
+    # 效果: 目标盾牌禁用4秒(禁用期内其挡格视为无效)
+    values:
+      ban-seconds: 4          # 盾牌禁用时长(秒)
+      blocked-damage-penalty-percent: 100          # 禁用期间挡格无效化伤害补偿%
+  cleave:
+    enabled: true
+    max-level: 3
+    display-name: "横扫"
+    color: "§c"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDamageByEntityEvent 命中生物
+    # 效果: 2格范围内其他生物受到本次伤害(20×等级)%
+    values:
+      aoe-damage-percent-per-level: 20          # 溅射伤害比例%×等级
+      radius-blocks: 2          # 溅射半径(格)
+  bloodlust:
+    enabled: true
+    max-level: 3
+    display-name: "嗜血"
+    color: "§4"            # 仅允许原版颜色码
+    sources: [smithing, loot]
+    # 触发: 连续击杀(EntityDeathEvent 叠层, EntityDamageByEntityEvent 增伤)
+    # 效果: 每层叠加+(5×等级)%伤害，上限5层，脱战10秒清零
+    values:
+      damage-percent-per-stack-per-level: 5          # 每层增伤%×等级
+      max-stacks: 5          # 最大层数
+      decay-seconds: 10          # 脱战清零秒数
+  fracture:
+    enabled: true
+    max-level: 3
+    display-name: "碎骨"
+    color: "§e"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDamageByEntityEvent 命中生物
+    # 效果: 无视目标护甲值(10×等级)%
+    values:
+      ignore-armor-percent-per-level: 10          # 无视护甲比例%×等级
+  night_bite:
+    enabled: true
+    max-level: 3
+    display-name: "噬夜"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [loot]
+    # 触发: 玩家在渊域世界且黑夜时造成伤害
+    # 效果: 伤害+(7×等级)%
+    values:
+      damage-percent-per-level: 7          # 增伤%×等级
+  sun_brand:
+    enabled: true
+    max-level: 3
+    display-name: "烙日"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [loot]
+    # 触发: 玩家在炽壤世界且白天时造成伤害
+    # 效果: 伤害+(7×等级)%
+    values:
+      damage-percent-per-level: 7          # 增伤%×等级
+  executioner:
+    enabled: true
+    max-level: 2
+    display-name: "处决"
+    color: "§c"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDamageByEntityEvent 命中生命低于阈值的生物
+    # 效果: 目标生命低于20%时伤害+(30×等级)%
+    values:
+      damage-percent-per-level: 30          # 增伤%×等级
+      threshold-health-percent: 20          # 目标生命阈值%
+  chain:
+    enabled: true
+    max-level: 2
+    display-name: "连锁"
+    color: "§9"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityDeathEvent 击杀 → 窗口期内下次命中增伤
+    # 效果: 击杀后5秒内下次攻击伤害+(25×等级)%
+    values:
+      damage-percent-per-level: 25          # 增伤%×等级
+      window-seconds: 5          # 击杀后生效窗口(秒)
+  blood_pact:
+    enabled: true
+    max-level: 3
+    display-name: "血契"
+    color: "§4"            # 仅允许原版颜色码
+    sources: [smithing, loot]
+    # 触发: EntityDamageByEntityEvent 造成伤害
+    # 效果: 吸取本次伤害(5×等级)%转化为自身生命
+    values:
+      heal-percent-per-level: 5          # 吸血比例%×等级
+
+  # ---------- 防具类·头盔胸甲护腿靴 ----------
+  tough:
+    enabled: true
+    max-level: 3
+    display-name: "韧甲"
+    color: "§b"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: PlayerItemDamageEvent 装备耐久损耗
+    # 效果: 耐久损耗-(20×等级)%
+    values:
+      wear-reduce-percent-per-level: 20          # 耐久损耗减免%×等级
+  quench:
+    enabled: true
+    max-level: 1
+    display-name: "淬火"
+    color: "§9"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityCombustEvent 点燃 + 燃烧期玩家装备免损
+    # 效果: 燃烧期间穿戴装备免疫耐久损耗；自身燃烧时间-50%
+    values:
+      burn-time-reduce-percent: 50          # 自身燃烧时间减免%
+  bedrock_stance:
+    enabled: true
+    max-level: 2
+    display-name: "磐石"
+    color: "§3"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityKnockbackEvent 被击退
+    # 效果: 被击退距离-(40×等级)%
+    values:
+      knockback-reduce-percent-per-level: 40          # 被击退距离减免%×等级
+  revive:
+    enabled: true
+    max-level: 2
+    display-name: "复苏"
+    color: "§d"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 玩家生命低于阈值时(EntityDamageEvent 后检测)
+    # 效果: 获得吸收I持续8秒，冷却60秒
+    values:
+      threshold-health-percent: 20          # 触发生命阈值%
+      absorb-seconds: 8          # 吸收效果持续(秒)
+      absorb-amplifier: 0          # 吸收效果等级(0=I)
+      cooldown-seconds: 60          # 触发冷却(秒)
+  shade:
+    enabled: true
+    max-level: 1
+    display-name: "潜影"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [loot]
+    # 触发: 玩家潜行且在渊域世界且黑夜(定时检测)
+    # 效果: 移速+15%；半径8格内怪物不优先锁定该玩家
+    values:
+      speed-percent: 15          # 潜行时移速加成%(固定)
+      hide-radius-blocks: 8          # 怪物不优先锁定的半径(格)
+  featherweight:
+    enabled: true
+    max-level: 3
+    display-name: "轻羽"
+    color: "§a"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 穿戴时(定时检测)
+    # 效果: 移速+(4×等级)%
+    values:
+      speed-percent-per-level: 4          # 移速加成%×等级
+  vitality:
+    enabled: true
+    max-level: 3
+    display-name: "生机"
+    color: "§2"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 穿戴时(属性修正)
+    # 效果: 最大生命+(2×等级)点(每级+1颗心)
+    values:
+      health-per-level: 2          # 最大生命加成(半点)×等级
+  thorns_edge:
+    enabled: true
+    max-level: 3
+    display-name: "棘刺"
+    color: "§c"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 被近战命中(EntityDamageByEntityEvent)
+    # 效果: 反弹(15×等级)%伤害给攻击者
+    values:
+      reflect-percent-per-level: 15          # 反弹伤害比例%×等级
+  void_ward:
+    enabled: true
+    max-level: 3
+    display-name: "渊护"
+    color: "§1"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 玩家在渊域世界时受到伤害(EntityDamageEvent)
+    # 效果: 受伤-(5×等级)%
+    values:
+      damage-reduce-percent-per-level: 5          # 受伤减免%×等级
+  sun_ward:
+    enabled: true
+    max-level: 3
+    display-name: "日照"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 玩家在炽壤世界时受到伤害(EntityDamageEvent)
+    # 效果: 受伤-(5×等级)%
+    values:
+      damage-reduce-percent-per-level: 5          # 受伤减免%×等级
+  deep_breath:
+    enabled: true
+    max-level: 2
+    display-name: "深息"
+    color: "§b"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 水下时(定时检测)
+    # 效果: 氧气消耗-(40×等级)%
+    values:
+      air-reduce-percent-per-level: 40          # 氧气消耗减免%×等级
+  steadfast:
+    enabled: true
+    max-level: 2
+    display-name: "屹立"
+    color: "§9"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 落地摔落(EntityDamageEvent CAUSE=FALL)
+    # 效果: 摔落伤害-(30×等级)%
+    values:
+      fall-reduce-percent-per-level: 30          # 摔落伤害减免%×等级
+
+  # ---------- 工具类·镐斧铲 ----------
+  shard_affinity:
+    enabled: false          # ★默认关闭
+    max-level: 3
+    display-name: "碎片亲和"
+    color: "§a"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: BlockBreakEvent 挖掘(提供倍率记录,实际掉落由服主现有系统读取)
+    # 效果: 炽阳碎片掉率×(1.5×等级)倍；若服主未做碎片系统请保持关闭
+    values:
+      mult-per-level: 1.5          # 碎片掉率倍率=数值×等级
+  rich_vein:
+    enabled: true
+    max-level: 3
+    display-name: "富矿"
+    color: "§2"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: BlockBreakEvent 挖掘矿石类方块(材料表可配)
+    # 效果: (25×等级)%概率额外掉落1个
+    values:
+      chance-percent-per-level: 25          # 额外掉落概率%×等级
+  smelt:
+    enabled: true
+    max-level: 1
+    display-name: "熔炼"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: BlockBreakEvent 挖掘矿石类方块(映射表可配)
+    # 效果: 直接掉落烧炼后产物，经验减半
+    values:
+      xp-multiplier: 0.5          # 熔炼经验乘数
+      xp-base: 1          # 每块基础经验点
+  rock_break:
+    enabled: true
+    max-level: 3
+    display-name: "断岩"
+    color: "§7"            # 仅允许原版颜色码
+    sources: [enchanting, smithing]
+    # 触发: BlockBreakEvent 挖掘(属性修正,可切药水效果模式)
+    # 效果: 挖掘速度+(15×等级)%
+    values:
+      speed-percent-per-level: 15          # 挖掘速度加成%×等级
+  spread:
+    enabled: false          # ★默认关闭
+    max-level: 2
+    display-name: "蔓延"
+    color: "§a"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 潜行挖掘方块(分帧处理)
+    # 效果: 连锁挖掘相邻同类方块，上限(3×等级)个
+    values:
+      max-blocks-per-level: 3          # 连锁上限(格)×等级
+  timber:
+    enabled: true
+    max-level: 3
+    display-name: "伐木"
+    color: "§2"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 砍伐原木(相连树扫描,分帧处理)
+    # 效果: 连锁砍伐整棵相连树木，上限(8×等级)格
+    values:
+      max-blocks-per-level: 8          # 连锁上限(格)×等级
+  deep_dig:
+    enabled: false          # ★默认关闭
+    max-level: 2
+    display-name: "深掘"
+    color: "§7"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 向下挖掘(分帧处理)
+    # 效果: 连锁向下挖掘(2×等级)格
+    values:
+      depth-per-level: 2          # 向下连锁深度(格)×等级
+  magnet:
+    enabled: true
+    max-level: 1
+    display-name: "磁引"
+    color: "§b"            # 仅允许原版颜色码
+    sources: [smithing, loot]
+    # 触发: 挖掘产生掉落物
+    # 效果: 掉落物直接进入玩家背包(满则落脚下)
+    values:
+      collect-radius-blocks: 0          # 超出背包时就近掉落半径(0=脚下)
+  prospector:
+    enabled: true
+    max-level: 2
+    display-name: "勘探"
+    color: "§3"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 挖掘方块(分帧扫描+粒子,仅触发者可见)
+    # 效果: 显示周围(8×等级)格内矿石轮廓3秒
+    values:
+      radius-blocks-per-level: 8          # 勘探半径(格)×等级
+      show-seconds: 3          # 显示时长(秒)
+  swift_repair:
+    enabled: true
+    max-level: 3
+    display-name: "速修"
+    color: "§a"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: BlockBreakEvent 挖掘
+    # 效果: (10×等级)%概率消耗经验修复装备2点耐久
+    values:
+      chance-percent-per-level: 10          # 触发概率%×等级
+      repair-amount: 2          # 修复耐久(点)
+      xp-cost-levels: 1          # 消耗经验(级)
+  quarry:
+    enabled: true
+    max-level: 3
+    display-name: "采石"
+    color: "§e"            # 仅允许原版颜色码
+    sources: [enchanting, smithing]
+    # 触发: 挖掘石头类方块(材料表可配)
+    # 效果: 对石头类方块速度+(25×等级)%
+    values:
+      speed-percent-per-level: 25          # 石头类挖掘速度加成%×等级
+  fine_gather:
+    enabled: true
+    max-level: 2
+    display-name: "精收"
+    color: "§2"            # 仅允许原版颜色码
+    sources: [loot]
+    # 触发: BlockBreakEvent 挖掘非矿石方块
+    # 效果: (20×等级)%概率掉落物×2
+    values:
+      chance-percent-per-level: 20          # 双倍掉落概率%×等级
+
+  # ---------- 弓弩类·弓与弩 ----------
+  star_chase:
+    enabled: true
+    max-level: 3
+    display-name: "追星"
+    color: "§d"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityShootBowEvent + ProjectileHitEvent
+    # 效果: 箭速+(20×等级)%；箭矢伤害+(8×等级)%
+    values:
+      speed-percent-per-level: 20          # 箭速加成%×等级
+      damage-percent-per-level: 8          # 箭矢伤害加成%×等级
+  void_split:
+    enabled: true
+    max-level: 2
+    display-name: "裂空"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: ProjectileHitEvent 箭矢命中生物
+    # 效果: 1.5格范围内其他生物受到本次伤害(30×等级)%
+    values:
+      aoe-damage-percent-per-level: 30          # 溅射伤害比例%×等级
+      radius-blocks: 1.5          # 溅射半径(格)
+  pierce_shadow:
+    enabled: true
+    max-level: 1
+    display-name: "贯影"
+    color: "§8"            # 仅允许原版颜色码
+    sources: [loot]
+    # 触发: ProjectileHitEvent 箭矢命中生物
+    # 效果: 箭矢穿透1个生物继续飞行
+    values:
+      pierce-count: 1          # 穿透生物数
+  split_arrow:
+    enabled: true
+    max-level: 3
+    display-name: "裂矢"
+    color: "§b"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityShootBowEvent 射箭
+    # 效果: 额外发射(等级)支箭(带散布角度)
+    values:
+      extra-arrows-per-level: 1          # 额外箭数=数值×等级
+      spread-degrees: 10          # 散布角度(度)
+  homing:
+    enabled: true
+    max-level: 2
+    display-name: "寻星"
+    color: "§9"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 射箭后定时刻追踪最近生物(有时限)
+    # 效果: 箭矢轻微追踪半径(4×等级)格内最近生物
+    values:
+      radius-blocks-per-level: 4          # 追踪半径(格)×等级
+      max-ticks: 60          # 追踪最长持续(刻)
+      turn-factor: 0.2          # 每刻转向系数(0~1)
+  blast_tip:
+    enabled: true
+    max-level: 2
+    display-name: "爆镞"
+    color: "§c"            # 仅允许原版颜色码
+    sources: [smithing, loot]
+    # 触发: ProjectileHitEvent 箭矢命中
+    # 效果: 小范围爆炸(不破坏方块)，范围内伤害(40×等级)%
+    values:
+      damage-percent-per-level: 40          # 爆炸伤害比例%×等级
+      radius-blocks: 1.5          # 爆炸半径(格)
+      explosion-power: 1.0          # 视觉爆炸威力(不破坏方块)
+  frost_bind:
+    enabled: true
+    max-level: 2
+    display-name: "霜缚"
+    color: "§b"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: ProjectileHitEvent 箭矢命中生物
+    # 效果: 目标获得减速I持续(2×等级)秒
+    values:
+      slow-seconds-per-level: 2          # 减速持续(秒)×等级
+      slow-amplifier: 0          # 减速等级(0=I)
+  quick_draw:
+    enabled: true
+    max-level: 3
+    display-name: "速射"
+    color: "§a"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: EntityShootBowEvent 拉弓(服务端按力度判定)
+    # 效果: 未拉满但达到(85×等级)%阈值时按满弓结算
+    values:
+      threshold-reduce-percent-per-level: 15          # 拉满判定阈值降低%×等级
+
+  # ---------- 盾牌类 ----------
+  bulwark:
+    enabled: true
+    max-level: 3
+    display-name: "壁垒"
+    color: "§7"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 挡格成功(EntityDamageByEntityEvent,举盾判定)
+    # 效果: 格挡减免额外+(8×等级)%
+    values:
+      extra-reduce-percent-per-level: 8          # 挡格额外减免%×等级
+  reflect:
+    enabled: true
+    max-level: 2
+    display-name: "反射"
+    color: "§8"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 挡格箭矢成功
+    # 效果: 反弹箭矢，对原射手造成(50×等级)%伤害
+    values:
+      damage-percent-per-level: 50          # 反弹箭矢伤害比例%×等级
+  bash:
+    enabled: true
+    max-level: 2
+    display-name: "盾击"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [smithing]
+    # 触发: 挡格成功后(EntityDamageByEntityEvent)
+    # 效果: 成功格挡后3秒内下次近战伤害+(20×等级)%
+    values:
+      damage-percent-per-level: 20          # 下次近战增伤%×等级
+      window-seconds: 3          # 生效窗口(秒)
+
+  # ---------- 钓鱼类·钓竿 ----------
+  angler:
+    enabled: true
+    max-level: 3
+    display-name: "垂钓"
+    color: "§9"            # 仅允许原版颜色码
+    sources: [fishing]
+    # 触发: PlayerFishEvent 抛竿/收竿
+    # 效果: 咬钩等待时间-(15×等级)%；钓鱼稀有度+1每级(按 +10%×等级 宝藏概率实现)
+    values:
+      wait-reduce-percent-per-level: 15          # 咬钩等待时间减免%×等级
+      rarity-bonus-percent-per-level: 10          # 稀有度+1档/级,折算为宝藏概率+%×等级
+  treasure_seeker:
+    enabled: true
+    max-level: 3
+    display-name: "寻宝"
+    color: "§b"            # 仅允许原版颜色码
+    sources: [fishing]
+    # 触发: PlayerFishEvent 钓到物品
+    # 效果: 宝藏概率+(20×等级)%
+    values:
+      treasure-chance-percent-per-level: 20          # 宝藏概率加成%×等级
+
+  # ---------- 传说级·极稀有 ----------
+  endless:
+    enabled: true
+    max-level: 1
+    display-name: "不灭"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 被动(PlayerItemDamageEvent)
+    # 效果: 装备永不损耗耐久
+    values:
+      {}                 # 该附魔无数值参数(纯开关型效果)
+  soulbound:
+    enabled: true
+    max-level: 1
+    display-name: "魂契"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 玩家死亡(PlayerDeathEvent)
+    # 效果: 该装备不掉落，复活时归还
+    values:
+      {}                 # 该附魔无数值参数(纯开关型效果)
+  beacon_light:
+    enabled: true
+    max-level: 3
+    display-name: "灯塔之辉"
+    color: "§e"            # 仅允许原版颜色码
+    sources: [event]
+    # 触发: 被动(定时检测)
+    # 效果: 全伤害+(3×等级)%、受伤-(3×等级)%、挖掘速度+(5×等级)%
+    values:
+      damage-percent-per-level: 3          # 全伤害加成%×等级
+      damage-reduce-percent-per-level: 3          # 受伤减免%×等级
+      speed-percent-per-level: 5          # 挖掘速度加成%×等级
+
+  # ---------- 阵营专属 ----------
+  dawn_light:
+    enabled: true
+    max-level: 3
+    display-name: "昼辉"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [shop]
+    # 触发: 玩家在炽壤世界且白天造成伤害
+    # 效果: 伤害+(6×等级)%
+    values:
+      damage-percent-per-level: 6          # 增伤%×等级
+  night_hunt:
+    enabled: true
+    max-level: 3
+    display-name: "夜猎"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [shop]
+    # 触发: 玩家在渊域世界且黑夜造成伤害
+    # 效果: 伤害+(6×等级)%
+    values:
+      damage-percent-per-level: 6          # 增伤%×等级
+  star_vein_dawn:
+    enabled: true
+    max-level: 3
+    display-name: "星脉·昼"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [shop]
+    # 触发: 炽壤白天挖掘(属性/效果修正)
+    # 效果: 挖掘速度+(12×等级)%
+    values:
+      speed-percent-per-level: 12          # 挖掘速度加成%×等级
+  star_vein_dusk:
+    enabled: true
+    max-level: 3
+    display-name: "星脉·夜"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [shop]
+    # 触发: 渊域黑夜挖掘(属性/效果修正)
+    # 效果: 挖掘速度+(12×等级)%
+    values:
+      speed-percent-per-level: 12          # 挖掘速度加成%×等级
+  oath_guard_dawn:
+    enabled: true
+    max-level: 3
+    display-name: "守誓·昼"
+    color: "§6"            # 仅允许原版颜色码
+    sources: [shop]
+    # 触发: 炽壤白天受伤(EntityDamageEvent)
+    # 效果: 受伤-(5×等级)%
+    values:
+      damage-reduce-percent-per-level: 5          # 受伤减免%×等级
+  oath_guard_dusk:
+    enabled: true
+    max-level: 3
+    display-name: "守誓·夜"
+    color: "§5"            # 仅允许原版颜色码
+    sources: [shop]
+    # 触发: 渊域黑夜受伤(EntityDamageEvent)
+    # 效果: 受伤-(5×等级)%
+    values:
+      damage-reduce-percent-per-level: 5          # 受伤减免%×等级
