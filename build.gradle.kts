@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.starinn"
-version = "1.0.0"
+version = "1.0.1"
 
 java {
     // 目标 Java 21（Purpur 1.21.11 运行时要求 Java 21）
