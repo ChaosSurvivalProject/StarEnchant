@@ -93,6 +93,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+
+// ===== 内置更新模块（mc-autoupdate） =====
+import com.starinn.enchant.update.UpdateCommand;
+import com.starinn.enchant.update.UpdateConfig;
+import com.starinn.enchant.update.UpdateManager;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
@@ -132,6 +137,9 @@ public final class StarEnchant extends JavaPlugin {
     private CommandHandler commandHandler;
     private BukkitTask maintenanceTask;
 
+    // 内置更新模块（开机自检 + 每周四 12:00 定时，失败不影响主功能）
+    private UpdateManager updateManager;
+
     // 自检统计（红线⑥：任一模块失败只降级该功能，绝不导致插件启动失败）
     private int checkNormal;
     private int checkDegraded;
@@ -145,6 +153,22 @@ public final class StarEnchant extends JavaPlugin {
         instance = this;
         saveDefaultConfig();
         bootstrap();
+        // 内置更新：自检一次 + 每周四 12:00 定时检查。任何异常只关闭更新功能，不影响插件主体。
+        try {
+            UpdateConfig uc = new UpdateConfig(
+                    "https://raw.githubusercontent.com/ChaosSurvivalProject/StarEnchant/main/updates/latest.json",
+                    getDescription().getVersion(),
+                    "1.21.11",
+                    "stable", true, true);
+            updateManager = new UpdateManager(this, uc);
+            updateManager.checkAndSchedule(() -> updateManager.check(false));
+            if (getCommand("starenchant") != null) {
+                getCommand("starenchant").setExecutor(new UpdateCommand(updateManager));
+                getCommand("starenchant").setTabCompleter(new UpdateCommand(updateManager));
+            }
+        } catch (Throwable t) {
+            getLogger().warning("[星穹旅驿] 更新模块初始化失败（不影响主功能）：" + t.getMessage());
+        }
     }
 
     /** 启动装配：配置 -> 注册表 -> 自检 -> 监听器 -> 周期任务。任何一步异常只关闭对应功能。 */
