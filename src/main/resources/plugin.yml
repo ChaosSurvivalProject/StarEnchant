@@ -15,6 +15,13 @@ commands:
     permission: star.enchant.use
     permission-message: §c你没有使用本插件命令的权限。
 
+  starenchant:
+    description: StarEnchant 内置更新管理命令
+    usage: /<command> update <check|apply|status>
+    aliases: [seu]
+    permission: starenchant.update
+    permission-message: §c你没有使用本插件命令的权限。
+
 permissions:
   star.enchant.use:
     description: 使用 /enchant list / info / shop 等玩家级命令
@@ -36,4 +43,7 @@ permissions:
     default: op
   star.enchant.setfaction:
     description: 设置玩家阵营（管理员）
+    default: op
+  starenchant.update:
+    description: 检查并应用 StarEnchant 内置更新（管理员）
     default: op
