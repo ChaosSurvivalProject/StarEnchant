@@ -24,6 +24,7 @@ Bukkit/Purpur 原生插件，**双层附魔体系**：
 |---|---|---|
 | `/enchant list [类别] [页码]` | 附魔总览（all/weapon/armor/tool/bow/shield/fishing/legend/faction） | `star.enchant.use` |
 | `/enchant info <id>` | 触发事件、每级数值、获取途径 | `star.enchant.use` |
+| `/enchant guide` | 领取附魔指南书（原版成书，含每项附魔的介绍/适用物品/最大等级/获取方式） | `star.enchant.use` |
 | `/enchant give <玩家> <id> <等级>` | 发放附魔书（管理员） | `star.enchant.give` |
 | `/enchant shop` | 阵营商店（货币=经验等级，原生 API） | `star.enchant.shop` |
 | `/enchant faction <玩家> <dawn|dusk|none>` | 设置阵营 | `star.enchant.setfaction` |

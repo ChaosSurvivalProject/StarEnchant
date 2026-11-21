@@ -88,6 +88,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.SmithingInventory;
+import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -3765,6 +3766,8 @@ public final class StarEnchant extends JavaPlugin {
         private static final String P_ADMIN = "star.enchant.give";
         private static final String P_RELOAD = "star.enchant.reload";
         private static final String P_FACTION = "star.enchant.setfaction";
+        /** 附魔介绍文案（由 README 60 附魔总表的「触发与效果」列同源生成）。 */
+        private static final Map<String, String> GUIDE_DESCRIPTIONS = buildGuideDescriptions();
         private final StarEnchant plugin;
 
         CommandHandler(StarEnchant plugin) {
@@ -3780,6 +3783,7 @@ public final class StarEnchant extends JavaPlugin {
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "list" -> doList(sender, args);
                 case "info" -> doInfo(sender, args);
+                case "guide" -> doGuide(sender);
                 case "give" -> doGive(sender, args);
                 case "reload" -> doReload(sender);
                 case "shop" -> doShop(sender, args);
@@ -3793,6 +3797,7 @@ public final class StarEnchant extends JavaPlugin {
             s.sendMessage("§6§l星穹旅驿 · StarEnchant §ev" + plugin.getDescription().getVersion());
             s.sendMessage("§7/" + "enchant list [类别] [页码] §f— 附魔总览（8 类 60 项）");
             s.sendMessage("§7/enchant info <附魔id> §f— 触发事件/效果数值/获取途径");
+            s.sendMessage("§7/enchant guide §f— 领取附魔指南书（原版成书）");
             s.sendMessage("§7/enchant give <玩家> <附魔id> <等级> §f— 发放附魔书（管理员）");
             s.sendMessage("§7/enchant shop §f— 打开阵营商店");
             s.sendMessage("§7/enchant faction <玩家> <" + plugin.data().factionDawn + "|"
@@ -3878,6 +3883,162 @@ public final class StarEnchant extends JavaPlugin {
                 return String.valueOf((long) v);
             }
             return String.format(Locale.ROOT, "%.2f", v);
+        }
+
+        private static Map<String, String> buildGuideDescriptions() {
+            Map<String, String> m = new HashMap<>();
+            put("blaze", "目标燃烧(等级×2)秒；对怪物伤害+(8×等级)%");
+            put("rift", "击退距离+(50×等级)%；击杀怪物(15×等级)%概率额外掉落1个该怪物掉落物");
+            put("sharp_edge", "攻击冷却-(8×等级)%：以服务端等效的「迅捷连击」实现——命中后(8×等级)%概率追加一次额外攻击");
+            put("echo", "(20×等级)%概率恢复2饥饿值+1点生命");
+            put("drain", "怪物经验掉落+(25×等级)%");
+            put("shield_break", "目标盾牌禁用4秒(禁用期内其挡格视为无效)(默认关闭)");
+            put("cleave", "2格范围内其他生物受到本次伤害(20×等级)%");
+            put("bloodlust", "每层叠加+(5×等级)%伤害，上限5层，脱战10秒清零");
+            put("fracture", "无视目标护甲值(10×等级)%");
+            put("night_bite", "伤害+(7×等级)%");
+            put("sun_brand", "伤害+(7×等级)%");
+            put("executioner", "目标生命低于20%时伤害+(30×等级)%");
+            put("chain", "击杀后5秒内下次攻击伤害+(25×等级)%");
+            put("blood_pact", "吸取本次伤害(5×等级)%转化为自身生命");
+            put("tough", "耐久损耗-(20×等级)%");
+            put("quench", "燃烧期间穿戴装备免疫耐久损耗；自身燃烧时间-50%");
+            put("bedrock_stance", "被击退距离-(40×等级)%");
+            put("revive", "获得吸收I持续8秒，冷却60秒");
+            put("shade", "移速+15%；半径8格内怪物不优先锁定该玩家");
+            put("featherweight", "移速+(4×等级)%");
+            put("vitality", "最大生命+(2×等级)点(每级+1颗心)");
+            put("thorns_edge", "反弹(15×等级)%伤害给攻击者");
+            put("void_ward", "受伤-(5×等级)%");
+            put("sun_ward", "受伤-(5×等级)%");
+            put("deep_breath", "氧气消耗-(40×等级)%");
+            put("steadfast", "摔落伤害-(30×等级)%");
+            put("shard_affinity", "炽阳碎片掉率×(1.5×等级)倍；若服主未做碎片系统请保持关闭(默认关闭)");
+            put("rich_vein", "(25×等级)%概率额外掉落1个");
+            put("smelt", "直接掉落烧炼后产物，经验减半");
+            put("rock_break", "挖掘速度+(15×等级)%");
+            put("spread", "连锁挖掘相邻同类方块，上限(3×等级)个(默认关闭)");
+            put("timber", "连锁砍伐整棵相连树木，上限(8×等级)格");
+            put("deep_dig", "连锁向下挖掘(2×等级)格(默认关闭)");
+            put("magnet", "掉落物直接进入玩家背包(满则落脚下)");
+            put("prospector", "显示周围(8×等级)格内矿石轮廓3秒");
+            put("swift_repair", "(10×等级)%概率消耗经验修复装备2点耐久");
+            put("quarry", "对石头类方块速度+(25×等级)%");
+            put("fine_gather", "(20×等级)%概率掉落物×2");
+            put("star_chase", "箭速+(20×等级)%；箭矢伤害+(8×等级)%");
+            put("void_split", "1.5格范围内其他生物受到本次伤害(30×等级)%");
+            put("pierce_shadow", "箭矢穿透1个生物继续飞行");
+            put("split_arrow", "额外发射(等级)支箭(带散布角度)");
+            put("homing", "箭矢轻微追踪半径(4×等级)格内最近生物");
+            put("blast_tip", "小范围爆炸(不破坏方块)，范围内伤害(40×等级)%");
+            put("frost_bind", "目标获得减速I持续(2×等级)秒");
+            put("quick_draw", "未拉满但达到(85×等级)%阈值时按满弓结算");
+            put("bulwark", "格挡减免额外+(8×等级)%");
+            put("reflect", "反弹箭矢，对原射手造成(50×等级)%伤害");
+            put("bash", "成功格挡后3秒内下次近战伤害+(20×等级)%");
+            put("angler", "咬钩等待时间-(15×等级)%；钓鱼稀有度+1每级(按 +10%×等级 宝藏概率实现)");
+            put("treasure_seeker", "宝藏概率+(20×等级)%");
+            put("endless", "装备永不损耗耐久");
+            put("soulbound", "该装备不掉落，复活时归还");
+            put("beacon_light", "全伤害+(3×等级)%、受伤-(3×等级)%、挖掘速度+(5×等级)%");
+            put("dawn_light", "伤害+(6×等级)%");
+            put("night_hunt", "伤害+(6×等级)%");
+            put("star_vein_dawn", "挖掘速度+(12×等级)%");
+            put("star_vein_dusk", "挖掘速度+(12×等级)%");
+            put("oath_guard_dawn", "受伤-(5×等级)%");
+            put("oath_guard_dusk", "受伤-(5×等级)%");
+            return Collections.unmodifiableMap(m);
+        }
+
+        /** /enchant guide —— 领取记载全部自定义附魔的原版成书。 */
+        private void doGuide(CommandSender s) {
+            if (!(s instanceof Player p)) {
+                s.sendMessage("§c附魔指南是实体书，只能由玩家领取");
+                return;
+            }
+            ItemStack book = buildGuideBook();
+            var leftover = p.getInventory().addItem(book);
+            for (ItemStack rest : leftover.values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), rest);
+            }
+            p.sendMessage("§6[星穹旅驿] §e已获得《星穹旅驿·附魔指南》§7，翻页可查阅全部自定义附魔");
+        }
+
+        private ItemStack buildGuideBook() {
+            ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+            BookMeta meta = (BookMeta) book.getItemMeta();
+            if (meta == null) return book;
+            meta.setTitle("星穹旅驿 · 附魔指南");
+            meta.setAuthor("StarInn");
+            List<String> pages = new ArrayList<>();
+            pages.add("§6§l星穹旅驿 · 附魔指南\n\n"
+                    + "§7本书记载本服全部 §f60 §7种自定义附魔，\n"
+                    + "§7每项包含四项信息：\n"
+                    + "  §f介绍 §7— 触发条件与效果\n"
+                    + "  §f适用物品 §7— 可附魔的装备类型\n"
+                    + "  §f最大等级 §7— 可强化到的最高级\n"
+                    + "  §f获取方式 §7— 锻造/附魔/商店/掉落/活动\n\n"
+                    + "§8————————————\n"
+                    + "§7快捷查询：§f/enchant info <附魔id>\n"
+                    + "§7附魔总览：§f/enchant list [类别]");
+            pages.add("§6§l目录 · 八大类别\n\n"
+                    + "§e武器类 §7— 剑 / 斧\n"
+                    + "§e防具类 §7— 头盔 / 胸甲 / 护腿 / 靴子\n"
+                    + "§e工具类 §7— 镐 / 斧 / 铲\n"
+                    + "§e弓弩类 §7— 弓 / 弩\n"
+                    + "§e盾牌类 §7— 盾牌\n"
+                    + "§e钓鱼类 §7— 钓竿\n"
+                    + "§e传说级 §7— 任意装备\n"
+                    + "§e阵营专属 §7— 黎明 / 暮夜\n\n"
+                    + "§7同类附魔连续排列，逐页翻阅即可。");
+            for (Def d : plugin.registry().all()) {
+                String desc = GUIDE_DESCRIPTIONS.getOrDefault(d.id, d.triggerDesc);
+                pages.add(d.color + "§l" + d.name + " §8" + d.id + "\n"
+                        + (d.enabled ? "" : "§c[本项已关闭]\n")
+                        + "§7介绍：§f" + desc + "\n\n"
+                        + "§7适用物品：§f" + applicableItems(d) + "\n"
+                        + "§7最大等级：§f" + LoreRenderer.roman(d.maxLevel) + "\n"
+                        + "§7获取方式：§f" + sourceNames(d.sources));
+            }
+            meta.setPages(pages);
+            book.setItemMeta(meta);
+            return book;
+        }
+
+        private String applicableItems(Def d) {
+            if (d.category == Category.FACTION) {
+                return switch (d.id) {
+                    case "star_vein_dawn", "star_vein_dusk" -> "镐、斧、铲（工具）";
+                    default -> "武器、防具";
+                };
+            }
+            return switch (d.category) {
+                case WEAPON -> "剑、斧（近战武器）";
+                case ARMOR -> "头盔、胸甲、护腿、靴子";
+                case TOOL -> "镐、斧、铲";
+                case BOW -> "弓、弩";
+                case SHIELD -> "盾牌";
+                case FISHING -> "钓竿";
+                case LEGEND -> "任意装备";
+                case FACTION -> "阵营专属装备";
+            };
+        }
+
+        private String sourceNames(Set<String> sources) {
+            if (sources == null || sources.isEmpty()) return "（未配置）";
+            List<String> out = new ArrayList<>();
+            for (String src : sources) {
+                out.add(switch (src) {
+                    case "smithing" -> "锻造台";
+                    case "enchanting" -> "附魔台";
+                    case "loot" -> "怪物掉落";
+                    case "fishing" -> "钓鱼";
+                    case "shop" -> "阵营商店";
+                    case "event" -> "活动发放";
+                    default -> src;
+                });
+            }
+            return String.join(" · ", out);
         }
 
         private void doGive(CommandSender s, String[] args) {
@@ -4009,38 +4170,53 @@ public final class StarEnchant extends JavaPlugin {
         @Override
         public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
             if (!plugin.data().tabComplete) return Collections.emptyList();
-            if (args.length == 1) {
-                return prefix(args[0], Arrays.asList("list", "info", "give", "reload", "shop", "faction", "help"));
-            }
             String sub = args[0].toLowerCase(Locale.ROOT);
-            if (args.length == 2) {
-                switch (sub) {
-                    case "list":
-                        return prefix(args[1], allCategoryNames());
-                    case "info":
-                    case "give":
-                        return prefix(args[1], enchantIds());
-                    case "faction":
-                        CfgData d = plugin.data();
-                        return prefix(args[1], Arrays.asList(d.factionDawn, d.factionDusk, "none"));
-                    default:
-                        return Collections.emptyList();
+            if (args.length == 1) {
+                return prefix(args[0], Arrays.asList(
+                        "list", "info", "guide", "give", "reload", "shop", "faction", "help"));
+            }
+            switch (args.length) {
+                case 2: {
+                    // 第 2 个参数（整条命令的第 3 个词）：give/faction/shop 都是玩家名
+                    switch (sub) {
+                        case "list":
+                            return prefix(args[1], allCategoryNames());
+                        case "info":
+                            return prefix(args[1], enchantIds());
+                        case "give":
+                        case "faction":
+                        case "shop": {
+                            List<String> names = new ArrayList<>();
+                            for (Player p : Bukkit.getOnlinePlayers()) names.add(p.getName());
+                            return prefix(args[1], names);
+                        }
+                        default:
+                            return Collections.emptyList();
+                    }
                 }
+                case 3: {
+                    // 第 3 个参数：give 是附魔 id，faction 是阵营值
+                    switch (sub) {
+                        case "give":
+                            return prefix(args[2], enchantIds());
+                        case "faction":
+                            CfgData d = plugin.data();
+                            return prefix(args[2], Arrays.asList(d.factionDawn, d.factionDusk, "none"));
+                        default:
+                            return Collections.emptyList();
+                    }
+                }
+                case 4:
+                    // 第 4 个参数：give 的等级
+                    if (sub.equals("give")) {
+                        List<String> out = new ArrayList<>();
+                        for (int i = 1; i <= 10; i++) out.add(String.valueOf(i));
+                        return out;
+                    }
+                    return Collections.emptyList();
+                default:
+                    return Collections.emptyList();
             }
-            if (args.length == 3 && sub.equals("give")) {
-                List<String> out = new ArrayList<>();
-                for (int i = 1; i <= 10; i++) out.add(String.valueOf(i));
-                return out;
-            }
-            if (args.length == 3 && sub.equals("list")) {
-                return Collections.emptyList();
-            }
-            if ((args.length == 2 || args.length == 3) && (sub.equals("give") || sub.equals("faction") || sub.equals("shop"))) {
-                List<String> names = new ArrayList<>();
-                for (Player p : Bukkit.getOnlinePlayers()) names.add(p.getName());
-                return prefix(args[args.length - 1], names);
-            }
-            return Collections.emptyList();
         }
 
         private List<String> allCategoryNames() {
