@@ -1,9 +1,21 @@
 # StarEnchant 星穹旅驿·扩展附魔插件 v1.0.0
 
+<p align="center">
+  <img src="assets/images/banner.png" alt="StarEnchant 宣传图" width="820">
+</p>
+
+
 Bukkit/Purpur 原生插件，**双层附魔体系**：
 
 1. **第一层（等级突破）**：原版附魔等级上限解锁至自定义值（锋利最高可到 `vanilla-plus.level-caps.SHARPNESS` 配置值），通过 `ItemMeta#addEnchant(ench, lv, true)` 实现，武器三件套 / 保护套件 / 效率精准可分别开关互斥。附魔台产出经 `EnchantItemEvent` 概率升档。
 2. **第二层（自定义附魔）**：**60 个自定义附魔、8 大类别**。数据全部存于物品 PDC（`starinn:ench`，单字符串序列化），效果由服务端事件驱动，**Java 与基岩（Geyser）两端真实生效**。
+
+## 效果预览
+
+<p align="center">
+  <img src="assets/images/demo.png" alt="StarEnchant 演示图" width="720">
+</p>
+
 
 ## 为什么用 lore 显示而不上附魔注册表 / 资源包 —— 设计声明（非缺陷）
 
