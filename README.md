@@ -1,3 +1,13 @@
+> ## 星穹旅驿出品 · Chaos Survival Project
+> 
+> 本插件/模组由 **星穹旅驿（Chaos Survival Project）** 团队开发维护。
+> 遇到问题或有功能建议？请到 **GitHub** 提交 Issue 反馈，我们会尽快处理。
+> This plugin/mod is developed by **星穹旅驿 (Chaos Survival Project)**. Found a bug or have a suggestion? Please report it on [GitHub Issues](https://github.com/ChaosSurvivalProject/StarEnchant/issues).
+> 
+> 🔗 GitHub 仓库 / Repo: [https://github.com/ChaosSurvivalProject/StarEnchant](https://github.com/ChaosSurvivalProject/StarEnchant) ｜ 反馈 / Issues: [https://github.com/ChaosSurvivalProject/StarEnchant/issues](https://github.com/ChaosSurvivalProject/StarEnchant/issues)
+
+---
+
 # StarEnchant 星穹旅驿·扩展附魔插件 v1.0.0
 
 <p align="center">
